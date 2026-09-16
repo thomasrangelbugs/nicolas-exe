@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#000000" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="format-detection" content="telephone=no" />
+  <title>NICOLAS.EXE — Birthday Build</title>
+  <link rel="icon" href="./assets/sprites/portraits/nicolas_icon.png" />
+  <link rel="apple-touch-icon" href="./assets/sprites/portraits/nicolas_icon.png" />
+  <link rel="stylesheet" href="./styles.css?v=20260916-release5" />
+</head>
+<body>
+  <div id="game-shell">
+    <aside id="rail-left" class="emu-rail" hidden>
+      <div class="rail-sys">
+        <button type="button" data-btn="pause" aria-label="Pausar">II</button>
+        <button type="button" data-btn="mute" aria-label="Mudo">♪</button>
+      </div>
+      <div class="snes-dpad" aria-label="Direcional">
+        <button type="button" data-btn="left" aria-label="Esquerda">◀</button>
+        <button type="button" data-btn="right" aria-label="Direita">▶</button>
+      </div>
+    </aside>
+
+    <div id="game"></div>
+
+    <aside id="rail-right" class="emu-rail" hidden>
+      <div class="rail-sys">
+        <button type="button" data-btn="fs" aria-label="Tela cheia">⛶</button>
+      </div>
+      <div class="snes-face">
+        <button type="button" data-btn="defend" class="btn-x" aria-label="Defesa"><span>X</span>DEF</button>
+        <button type="button" data-btn="run" class="btn-y" aria-label="Correr"><span>Y</span>RUN</button>
+        <button type="button" data-btn="jump" class="btn-b" aria-label="Pular"><span>B</span>JUMP</button>
+        <button type="button" data-btn="attack" class="btn-a" aria-label="Atacar"><span>A</span>ATK</button>
+      </div>
+    </aside>
+
+    <button id="chrome-fs" type="button" aria-label="Tela cheia" title="Tela cheia" hidden>⛶</button>
+
+    <div id="rotate-hint" hidden>
+      <div class="rotate-card">
+        <div class="rotate-icon" aria-hidden="true">📱</div>
+        <p>Vire o aparelho na horizontal para jogar melhor.</p>
+        <button id="rotate-dismiss" type="button">Continuar assim</button>
+      </div>
+    </div>
+  </div>
+  <script src="./vendor/phaser-3.90.0.min.js"></script>
+  <script type="module" src="./src/main.js?v=20260916-release5"></script>
+</body>
+</html>

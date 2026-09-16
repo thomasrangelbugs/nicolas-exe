@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "player": { "frameWidth": 96, "frameHeight": 128, "anims": { "idle": 6, "walk": 10, "run": 10, "jump": 6, "fall": 4, "attack": 8, "hurt": 4, "death": 8 } },
+  "enemy": { "file": "enemies/<tipo>/atlas.png", "frameWidth": 128, "frameHeight": 128, "frames": 4, "types": ["syntax", "runtime", "null", "leak", "legacy", "spaghetti"] },
+  "boss": { "file": "bosses/<nome>/atlas.png", "frameWidth": 256, "frameHeight": 256, "frames": 4, "types": ["procrastination", "deadline", "ultimate"] },
+  "animation": { "idle": [0, 1, 0, 2], "walk": [0, 1, 0, 2], "attack": [0, 3, 3, 0], "hurt": [3, 0], "death": "pose + fade and explosion" },
+  "tiles": { "platform": "256×48", "floor": "128×64", "objects": "64×64" },
+  "items": { "pickups": "48×48", "checkpoint": "48×64", "portal": "96×144" },
+  "combat": { "playerShot": "muzzle flash + charge sparks + 3 charge levels", "bossPatterns": ["cone", "burst", "arc rain", "cross"], "bossOpeningMs": 760 },
+  "notes": "PNG RGBA. O Nicolas, cenários e props receberam o passe visual 2. Os atlases substituem os antigos arquivos separados dos inimigos e chefes. Não regenerar com os geradores procedurais antigos."
+}

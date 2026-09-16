@@ -1,0 +1,294 @@
+@font-face {
+  font-family: "Press Start 2P";
+  src: url("./assets/fonts/PressStart2P-Regular.ttf") format("truetype");
+  font-display: swap;
+}
+@font-face {
+  font-family: "VT323";
+  src: url("./assets/fonts/VT323-Regular.ttf") format("truetype");
+  font-display: swap;
+}
+@font-face {
+  font-family: "Share Tech Mono";
+  src: url("./assets/fonts/ShareTechMono-Regular.ttf") format("truetype");
+  font-display: swap;
+}
+@font-face {
+  font-family: "Orbitron";
+  src: url("./assets/fonts/Orbitron-Bold.ttf") format("truetype");
+  font-display: swap;
+}
+
+:root {
+  color-scheme: dark;
+  font-family: "Share Tech Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --rail-w: clamp(92px, 16vw, 168px);
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background: #050711;
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: none;
+}
+
+body {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: stretch;
+  justify-content: stretch;
+}
+
+#game-shell {
+  flex: 1 1 auto;
+  width: 100%;
+  height: 100%;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #050711;
+  overflow: hidden;
+}
+
+#game {
+  flex: 1 1 auto;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  position: relative;
+  background: #050711;
+  overflow: hidden;
+}
+
+/* Leave sizing/position to Phaser Scale.FIT — do not override transform */
+#game canvas {
+  display: block;
+  image-rendering: auto;
+  touch-action: none;
+}
+
+/* Mobile SNES rails */
+#game-shell.emu-layout {
+  display: grid;
+  grid-template-columns: var(--rail-w) minmax(0, 1fr) var(--rail-w);
+  grid-template-rows: 1fr;
+  place-items: stretch;
+  padding: 0;
+  background: #000;
+}
+
+#game-shell.emu-layout #game {
+  grid-column: 2;
+  grid-row: 1;
+  width: 100%;
+  height: 100%;
+}
+
+.emu-rail {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  background: #000;
+  z-index: 12;
+  min-width: 0;
+}
+.emu-rail[hidden] { display: none !important; }
+
+#rail-left {
+  grid-column: 1;
+  grid-row: 1;
+  padding: 10px 8px 16px 8px;
+}
+#rail-right {
+  grid-column: 3;
+  grid-row: 1;
+  padding: 10px 8px 16px 8px;
+}
+
+.rail-sys {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  align-items: center;
+}
+
+.rail-sys button,
+.snes-dpad button,
+.snes-face button {
+  pointer-events: auto;
+  border: 2px solid #2a2a2a;
+  color: #e8e8e8;
+  cursor: pointer;
+  user-select: none;
+  touch-action: manipulation;
+  font-family: "Press Start 2P", monospace;
+}
+
+.rail-sys button {
+  width: clamp(40px, 9vw, 52px);
+  height: clamp(40px, 9vw, 52px);
+  border-radius: 10px;
+  background: #1a1a1a;
+  font-size: 13px;
+  color: #c8c8c8;
+}
+
+.snes-dpad {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  width: 100%;
+  margin-bottom: 8px;
+}
+.snes-dpad button {
+  width: 100%;
+  aspect-ratio: 1;
+  height: auto;
+  border-radius: 10px;
+  background: #2b2b2b;
+  font-size: clamp(14px, 3.4vw, 22px);
+  box-shadow: inset 0 2px 0 #4a4a4a, 0 4px 0 #111;
+}
+
+.snes-face {
+  display: grid;
+  grid-template-areas: "x y" "b a";
+  gap: 10px;
+  width: 100%;
+  margin-bottom: 4px;
+}
+.snes-face button {
+  width: 100%;
+  aspect-ratio: 1;
+  height: auto;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: clamp(7px, 1.6vw, 9px);
+  line-height: 1.15;
+  box-shadow: inset 0 3px 0 rgba(255,255,255,.25), 0 4px 0 #111;
+}
+.snes-face button span { font-size: clamp(11px, 2.4vw, 14px); }
+.btn-x { grid-area: x; background: #3d6ec9; border-color: #2a4e8f; }
+.btn-y { grid-area: y; background: #3d8f4a; border-color: #2d6a36; }
+.btn-b { grid-area: b; background: #c9a227; border-color: #8a7018; color: #1a1404; }
+.btn-a { grid-area: a; background: #c4453c; border-color: #8a2e28; }
+
+.rail-sys button.active,
+.snes-dpad button.active,
+.snes-face button.active,
+.rail-sys button:active,
+.snes-dpad button:active,
+.snes-face button:active {
+  transform: translateY(2px);
+  filter: brightness(1.15);
+  box-shadow: inset 0 2px 6px #0008;
+}
+
+#chrome-fs {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 8;
+  width: 44px;
+  height: 44px;
+  border: 1px solid #4ce0ff88;
+  background: #0b1024cc;
+  color: #9fdfff;
+  border-radius: 10px;
+  font-size: 18px;
+  cursor: pointer;
+}
+#chrome-fs[hidden],
+#game-shell.emu-layout #chrome-fs { display: none !important; }
+body.is-touch #chrome-fs:not([hidden]) { display: block; }
+
+#rotate-hint {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  background: #050711e6;
+  padding: 24px;
+}
+#rotate-hint[hidden] { display: none !important; }
+.rotate-card {
+  max-width: 360px;
+  text-align: center;
+  color: #dce7ff;
+  background: #0b1024;
+  border: 1px solid #4ce0ff88;
+  border-radius: 16px;
+  padding: 28px 22px;
+}
+.rotate-icon { font-size: 42px; margin-bottom: 10px; }
+.rotate-card p { font-family: "Share Tech Mono", monospace; font-size: 18px; line-height: 1.4; }
+.rotate-card button {
+  margin-top: 12px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: 1px solid #6ee7ff;
+  background: #122044;
+  color: #7cf5ff;
+  font-family: "Press Start 2P", monospace;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+@media (orientation: portrait) and (max-width: 900px) {
+  :root { --rail-w: clamp(72px, 22vw, 120px); }
+  #game-shell.emu-layout {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: minmax(0, 1fr) minmax(132px, 26dvh);
+  }
+  #game-shell.emu-layout #game {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+  #rail-left, #rail-right {
+    grid-row: 2;
+    flex-direction: row;
+    justify-content: space-around;
+    padding: 8px;
+  }
+  #rail-left { grid-column: 1; }
+  #rail-right { grid-column: 2; }
+  .rail-sys { flex-direction: row; width: auto; }
+  .snes-dpad, .snes-face { width: min(46vw, 220px); margin: 0; }
+}
+
+body.is-desktop #rail-left,
+body.is-desktop #rail-right,
+body.is-desktop #chrome-fs {
+  display: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rotate-icon { animation: none; }
+}
+
+/* Portrait controls stay in the lower area, with system buttons on their own row. */
+@media (orientation: portrait) and (max-width: 900px) {
+  #game-shell.emu-layout { grid-template-rows: minmax(0, 1fr) minmax(238px, 30dvh); }
+  #rail-left, #rail-right { position: relative; align-items: flex-end; padding: 56px 10px 16px; }
+  #rail-left .rail-sys, #rail-right .rail-sys { position: absolute; top: 8px; left: 12px; gap: 8px; }
+  #rail-right .rail-sys { left: auto; right: 12px; }
+  .rail-sys button { width: 40px; height: 40px; }
+  .snes-dpad, .snes-face { width: min(42vw, 176px); gap: 8px; }
+}
+.rail-sys button { font-family: Arial, sans-serif; font-size: 18px; }
