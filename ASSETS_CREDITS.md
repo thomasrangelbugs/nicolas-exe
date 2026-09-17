@@ -15,19 +15,21 @@ Todos os áudios de terceiros abaixo são **CC0** (domínio público / uso livre
 | `assets/audio/music/level4.mp3` | Dark City | cinameng | [OpenGameArt](https://opengameart.org/content/dark-city-0) | CC0 |
 | `assets/audio/music/boss.ogg` | Last One Standing (5) | Centurion_of_war | [OpenGameArt](https://opengameart.org/content/last-one-standing) | CC0 |
 | `assets/audio/music/boss_final.ogg` | Last One Standing (6) | Centurion_of_war | [OpenGameArt](https://opengameart.org/content/last-one-standing) | CC0 |
-| `assets/audio/music/ending.mp3` | Corrupt Data Stream | Tsorthan Grove | [OpenGameArt](https://opengameart.org/content/corrupt-data-stream) | CC0 |
-| `assets/audio/music/victory.ogg` | NES jingle 12 | Kenney | [OpenGameArt / Kenney.nl](https://opengameart.org/content/85-short-music-jingles) | CC0 |
+| `assets/audio/music/ending.ogg` | Party and Gameover loop (happy_theme) | gilzoide | [OpenGameArt](https://opengameart.org/content/party-and-gameover-loop) | CC0 |
+| `assets/audio/music/ending_party.mp3` | Funky Victory Loop | Archonic | [OpenGameArt](https://opengameart.org/content/funky-victory-loop) | CC0 |
+| `assets/audio/music/victory.ogg` | happy end music | Igor Gundarev | [OpenGameArt](https://opengameart.org/content/happy-end-music) | CC0 |
 | `assets/audio/music/intro.wav` | Loop original do projeto | Birthday Build tools | gerado em `tools/generate_audio.py` | original / livre |
-| `assets/audio/music/ending_soft.wav` | Loop original (ending suave) | Birthday Build tools | gerado em `tools/generate_audio.py` | original / livre |
+| `assets/audio/music/ending_soft.wav` | Good Ending - Diamond Dust | NBJDLukasAbsolute | [OpenGameArt](https://opengameart.org/content/good-ending-diamond-dust) | CC0 |
 
 ## Efeitos sonoros
 
 | Pacote | Autor | Origem | Licença | Uso no jogo |
 | --- | --- | --- | --- | --- |
-| Digital SFX Set (lasers, zaps, power-ups) | Kenney | [OpenGameArt](https://opengameart.org/content/63-digital-sound-effects-lasers-phasers-space-etc) | CC0 | jump, land, shoot, hurt, pickup, transition, impact |
+| Digital SFX Set (lasers, zaps, power-ups) | Kenney | [OpenGameArt](https://opengameart.org/content/63-digital-sound-effects-lasers-phasers-space-etc) | CC0 | jump, land, hurt, pickup, impact |
 | Interface Sounds | Kenney | [OpenGameArt](https://opengameart.org/content/interface-sounds) · [Kenney.nl](https://kenney.nl/assets/interface-sounds) | CC0 | click, hover, select, pause, glitch, checkpoint, death, game over, achievement |
 | Sci-Fi Sounds | Kenney | [OpenGameArt](https://opengameart.org/content/sci-fi-sounds) · [Kenney.nl](https://kenney.nl/assets/sci-fi-sounds) | CC0 | attack, hit, explosion, boss shot, enemy death, special |
 | 85 Short music jingles | Kenney | [OpenGameArt](https://opengameart.org/content/85-short-music-jingles) | CC0 | victory sting |
+| `shoot.wav` / `enemy_shot.wav` / `transition.wav` | Originais do projeto | Birthday Build tools | `tools/install_better_audio.py` | laser do jogador, zap inimigo, whoosh de troca de cena |
 
 Arquivos renomeados em `assets/audio/sfx/` (ex.: `jump.mp3`, `click.ogg`) são cópias desses pacotes, sem alteração de autoria.
 
@@ -67,4 +69,4 @@ Phaser 3.90.0 incluído localmente em `vendor/` (licença MIT) — [https://phas
 
 ## Passe visual 2
 
-`assets/sprites/player/*.png`: o concept de corpo inteiro do Nicolas (cabelo cacheado, bigode/barba, jaqueta preta com detalhes ciano) foi limpo para RGBA, rasterizado em folhas de 96×128 e recebeu variações de movimento, ataque, dano e morte. `assets/sprites/tiles/*`, `assets/sprites/items/*` e os fundos de fase receberam um acabamento local determinístico de metal, luz e profundidade para manter o estilo cyberpunk dos inimigos sem depender de CDN ou de geração em tempo de execução.
+`assets/sprites/player/*.png`: o concept de corpo inteiro do Nicolas (cabelo cacheado, bigode/barba, jaqueta preta com detalhes ciano) foi limpo para RGBA, rasterizado em folhas de 96×128 e recebeu ciclos reais de caminhada, corrida, pulo, queda e disparo (energia). `assets/sprites/tiles/*`, `assets/sprites/items/*` e os fundos de fase receberam um acabamento local determinístico de metal, luz e profundidade para manter o estilo cyberpunk dos inimigos sem depender de CDN ou de geração em tempo de execução.

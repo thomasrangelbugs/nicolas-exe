@@ -5,6 +5,7 @@ import { GameScene } from './scenes/GameScene.js';
 import { CompleteScene } from './scenes/CompleteScene.js';
 import { InterludeScene } from './scenes/InterludeScene.js';
 import { CreditsScene } from './scenes/CreditsScene.js';
+import { BestiaryScene } from './scenes/BestiaryScene.js';
 import { Device } from './systems/Device.js';
 import { VirtualPad } from './systems/VirtualPad.js';
 
@@ -35,7 +36,7 @@ const config = {
   },
   render: { antialias: true, pixelArt: false, roundPixels: true },
   audio: { disableWebAudio: false },
-  scene: [BootScene, MenuScene, IntroScene, GameScene, InterludeScene, CompleteScene, CreditsScene]
+  scene: [BootScene, MenuScene, IntroScene, GameScene, InterludeScene, CompleteScene, CreditsScene, BestiaryScene]
 };
 
 const game = new Phaser.Game(config);

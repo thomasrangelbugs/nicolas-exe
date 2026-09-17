@@ -114,6 +114,10 @@ export const AudioSystem = {
     this.sfx(scene, key, opts);
   },
 
+  stopSfx(scene, key) {
+    try { scene.sound.stopByKey(key); } catch {}
+  },
+
   fadeOut(scene, fade = 400) {
     if (!this.current) return;
     const cur = this.current;

@@ -6,15 +6,43 @@ import { Device } from '../systems/Device.js';
 import { setupScene } from '../systems/SceneLifecycle.js';
 
 const LEVELS = {
-  1: { name: 'HELLO WORLD', subtitle: 'Recupere o primeiro fragmento da Birthday Build.', theme: 0x071126, accent: 0x37d8ff, goal: 7, boss: false, art: 'art_lv1', music: 'mus_level1' },
-  2: { name: 'DEADLINE VALLEY', subtitle: 'Derrote a Procrastinação e recupere o segundo fragmento.', theme: 0x160c1f, accent: 0xff7c55, goal: 9, boss: 'PROCRASTINATION', art: 'art_lv2', music: 'mus_level2', bossKey: 'procrastination' },
-  3: { name: 'PRODUCTION', subtitle: 'Vença o Deadline e libere o caminho para o núcleo.', theme: 0x07161b, accent: 0x46f0bd, goal: 11, boss: 'DEADLINE', art: 'art_lv3', music: 'mus_level3', bossKey: 'deadline' },
-  4: { name: 'LEGACY CODE', subtitle: 'Destrua o Ultimate Bug e restaure a festa de Nicolas.', theme: 0x17130a, accent: 0xd7b464, goal: 12, boss: 'THE ULTIMATE BUG', art: 'art_lv4', music: 'mus_level4', bossKey: 'ultimate', bossMusic: 'mus_boss_final' }
+  1: { name: 'HELLO WORLD', subtitle: 'Recupere o primeiro fragmento da Birthday Build.', theme: 0x071126, accent: 0x37d8ff, goal: 11, boss: false, art: 'art_lv1', music: 'mus_level1' },
+  2: { name: 'DEADLINE VALLEY', subtitle: 'Derrote a Procrastinação e recupere o segundo fragmento.', theme: 0x160c1f, accent: 0xff7c55, goal: 14, boss: 'PROCRASTINATION', art: 'art_lv2', music: 'mus_level2', bossKey: 'procrastination' },
+  3: { name: 'PRODUCTION', subtitle: 'Vença o Deadline e libere o caminho para o núcleo.', theme: 0x07161b, accent: 0x46f0bd, goal: 16, boss: 'DEADLINE', art: 'art_lv3', music: 'mus_level3', bossKey: 'deadline' },
+  4: { name: 'LEGACY CODE', subtitle: 'Destrua o Ultimate Bug e restaure a festa de Nicolas.', theme: 0x17130a, accent: 0xd7b464, goal: 18, boss: 'THE ULTIMATE BUG', art: 'art_lv4', music: 'mus_level4', bossKey: 'ultimate', bossMusic: 'mus_boss_final' }
 };
 
 const TYPE_SLUG = {
   Syntax: 'syntax', Runtime: 'runtime', 'Null Pointer': 'null',
   'Memory Leak': 'leak', Legacy: 'legacy', Spaghetti: 'spaghetti'
+};
+
+/** Distinct kits: HP, speed, melee, bar color, combat style. */
+const ENEMY_KITS = {
+  syntax: {
+    hpMul: 1.0, speed: 68, sprintMul: 1.55, melee: 10,
+    color: 0x6ee7ff, barW: 38, style: 'ranged'
+  },
+  runtime: {
+    hpMul: 0.78, speed: 148, sprintMul: 1.65, melee: 17,
+    color: 0xff7c55, barW: 34, style: 'melee'
+  },
+  null: {
+    hpMul: 0.92, speed: 88, sprintMul: 1.7, melee: 19,
+    color: 0xbba2ff, barW: 36, style: 'tele_melee'
+  },
+  leak: {
+    hpMul: 1.12, speed: 46, sprintMul: 1.85, melee: 11,
+    color: 0x47e899, barW: 40, style: 'platform'
+  },
+  legacy: {
+    hpMul: 1.85, speed: 36, sprintMul: 1.45, melee: 22,
+    color: 0xd7b464, barW: 48, style: 'tank'
+  },
+  spaghetti: {
+    hpMul: 0.98, speed: 102, sprintMul: 1.75, melee: 14,
+    color: 0xff6b9d, barW: 36, style: 'chaos'
+  }
 };
 
 export class GameScene extends Phaser.Scene {
@@ -67,6 +95,7 @@ export class GameScene extends Phaser.Scene {
     this.cameras.main.setDeadzone(Device.wantsTouchUI() ? 60 : 140, 48);
     this.cameras.main.setFollowOffset(0, 28);
     this.showLevelTitle();
+    AudioSystem.stopSfx(this, 'sfx_typing');
     AudioSystem.playMusic(this, this.cfg.music);
     this.time.addEvent({ delay: 11000, loop: true, callback: () => this.ambientGlitch() });
     VirtualPad.setScene(this);
@@ -127,7 +156,15 @@ export class GameScene extends Phaser.Scene {
     this.platforms.add(floor);
     if (floor.body?.updateFromGameObject) floor.body.updateFromGameObject();
 
-    const plats = [[320, 560, 260], [720, 475, 250], [1110, 560, 280], [1450, 435, 220], [1810, 540, 300], [2200, 410, 250], [2600, 560, 300], [3030, 455, 260], [3380, 560, 260]];
+    const plats = [
+      [320, 560, 260], [720, 475, 250], [1110, 560, 280], [1450, 435, 220],
+      [1810, 540, 300], [2200, 410, 250], [2600, 560, 300], [3030, 455, 260], [3380, 560, 260]
+    ];
+    // Spots for platform-only leaks (skip the first ledge near spawn).
+    // halfW keeps feet inside the ledge so they never walk off the edge.
+    this.platformSpots = plats
+      .filter(([x]) => x >= 700)
+      .map(([x, y, w]) => ({ x, y: y - 42, halfW: Math.max(28, w * 0.28) }));
     plats.forEach(([x, y, w], idx) => {
       const p = this.tex('tile_platform')
         ? this.add.tileSprite(x, y, w, 24, 'tile_platform')
@@ -183,12 +220,17 @@ export class GameScene extends Phaser.Scene {
       .setOffset(polishedPlayer ? 22 : 14, polishedPlayer ? 17 : 18);
     this.playSafe(this.player, 'player-idle');
     this.player.setDepth(10);
-    this.shield = this.add.circle(this.player.x, this.player.y, 42, 0x4ce0ff, 0.16)
-      .setStrokeStyle(2, 0x7cf5ff, 0.9).setDepth(12).setVisible(false);
-    // Charge visual stays at the weapon hand; no shadow/ring is drawn below Nicolas.
-    this.chargeFx = this.add.container(this.player.x, this.player.y).setDepth(13).setVisible(false);
-    for (let i = 0; i < 7; i++) {
-      this.chargeFx.add(this.add.circle(0, 0, i < 3 ? 3.5 : 2.2, i % 2 ? 0xbca5ff : 0x62efff, 0.9));
+    this.player.setAlpha(1);
+    // Soft body aura for charge — not a hand circle
+    this.chargeFx = this.add.container(this.player.x, this.player.y).setDepth(9).setVisible(false);
+    this.chargeGlow = this.add.ellipse(0, 8, 70, 110, 0x4ce0ff, 0.22);
+    this.chargeGlow2 = this.add.ellipse(0, 4, 48, 78, 0xbca5ff, 0.18);
+    this.chargeCore = this.add.ellipse(0, 0, 28, 44, 0xffffff, 0.12);
+    this.chargeFx.add([this.chargeGlow, this.chargeGlow2, this.chargeCore]);
+    for (let i = 0; i < 10; i++) {
+      const spark = this.add.circle(0, 0, i < 4 ? 2.4 : 1.6, i % 2 ? 0xe8d6ff : 0x7cf5ff, 0.95);
+      spark.orbit = i;
+      this.chargeFx.add(spark);
     }
   }
 
@@ -200,17 +242,39 @@ export class GameScene extends Phaser.Scene {
   }
 
   spawnEnemies() {
-    const types = Object.keys(TYPE_SLUG);
-    const spots = [
-      [480, 528], [720, 442], [1110, 528], [1450, 402],
-      [1810, 508], [2200, 378], [2600, 528], [3030, 422],
-      [3380, 528], [980, 640], [1680, 640], [2480, 640]
+    const types = Object.keys(TYPE_SLUG).filter(t => t !== 'Memory Leak');
+    const floorSpots = [
+      [780, 640], [980, 640], [1280, 640], [1580, 640], [1880, 640],
+      [2180, 640], [2480, 640], [2780, 640], [3080, 640], [3380, 640]
     ];
-    for (let i = 0; i < this.cfg.goal; i++) {
+    const platSpots = this.platformSpots || [];
+    // Late phases soak more hits — weak shots take longer, charged still pays off
+    const baseHp = Math.round(88 * (1 + (this.level - 1) * 0.48));
+
+    // 1) Memory Leak (verde) — glued to floating platforms only (never drops to floor)
+    platSpots.forEach((spot, i) => {
+      const e = this.spawnBug(spot.x, spot.y, baseHp, 'Memory Leak');
+      e.onPlatform = true;
+      e.patrolMin = spot.x - spot.halfW;
+      e.patrolMax = spot.x + spot.halfW;
+      e.homeX = spot.x;
+      e.homeY = spot.y;
+      e.dir = i % 2 === 0 ? 1 : -1;
+      e.setBounce(0);
+      e.body.setAllowGravity(false);
+      e.setVelocity(0, 0);
+      e.setPosition(spot.x, spot.y);
+    });
+
+    // 2) Floor bugs — never near spawn, never Memory Leak (those stay up top)
+    const floorCount = Math.max(6, this.cfg.goal - platSpots.length);
+    for (let i = 0; i < floorCount; i++) {
+      const [x, y] = floorSpots[i % floorSpots.length];
       const type = types[i % types.length];
-      const [x, y] = spots[i % spots.length];
-      this.spawnBug(x, y, 42 + this.level * 10, type);
+      const e = this.spawnBug(x + (i * 37) % 80, y, baseHp, type);
+      e.onPlatform = false;
     }
+
     const loot = [
       [870, 350, 'item_coffee', 'coffee'],
       [1540, 390, 'item_coffee', 'coffee'],
@@ -232,32 +296,28 @@ export class GameScene extends Phaser.Scene {
   spawnBug(x, y, hp = 70, type) {
     type = type || Phaser.Math.RND.pick(Object.keys(TYPE_SLUG));
     const slug = TYPE_SLUG[type] || 'syntax';
+    const kit = ENEMY_KITS[slug] || ENEMY_KITS.syntax;
     const tex = `en_${slug}`;
     const e = this.enemies.create(x, y, tex);
     e.setBounce(0.05).setCollideWorldBounds(true);
-    // ~same visual height as Nicolas (player ~93px, enemy sheet 32px)
     e.setScale(1.12);
     e.body.setSize(86, 82).setOffset(21, 39);
     e.homeX = x; e.homeY = y; e.defeated = false;
-    e.hp = hp; e.maxHp = hp;
     e.type = type; e.slug = slug; e.role = slug;
     e.lastShot = 0; e.nextSpecial = 0;
-    // Distinct kits
-    if (slug === 'runtime') {
-      e.speed = 140 + this.level * 14; e.hp = Math.round(hp * 0.75); e.maxHp = e.hp;
-    } else if (slug === 'null') {
-      e.speed = 70 + this.level * 8; e.hp = Math.round(hp * 0.85); e.maxHp = e.hp;
-    } else if (slug === 'leak') {
-      e.speed = 45 + this.level * 6; e.hp = Math.round(hp * 1.1); e.maxHp = e.hp;
-    } else if (slug === 'legacy') {
-      e.speed = 40 + this.level * 5; e.hp = Math.round(hp * 1.55); e.maxHp = e.hp;
-    } else if (slug === 'spaghetti') {
-      e.speed = 95 + this.level * 12; e.hp = Math.round(hp * 0.9); e.maxHp = e.hp;
-    } else {
-      e.speed = 70 + this.level * 10;
-    }
+    e.nextSprint = 0; e.sprinting = false; e.sprintUntil = 0;
+    e.lungeUntil = 0; e.meleeReady = 0;
+    e.speed = kit.speed + this.level * (slug === 'runtime' ? 10 : slug === 'legacy' ? 3 : 7);
+    e.sprintMul = kit.sprintMul;
+    e.meleeDamage = kit.melee + this.level;
+    e.hpColor = kit.color;
+    e.barW = kit.barW;
+    e.style = kit.style;
+    e.hp = Math.round(hp * kit.hpMul);
+    e.maxHp = e.hp;
     e.dir = Phaser.Math.RND.pick([-1, 1]);
     this.playSafe(e, `en-${slug}-walk`);
+    this.attachEnemyHp(e);
     return e;
   }
 
@@ -351,15 +411,27 @@ export class GameScene extends Phaser.Scene {
 
   setupCollisions() {
     this.physics.add.collider(this.player, this.platforms);
-    // Colisão exclusiva com o chão principal. As plataformas flutuantes não
-    // entram neste collider, então chefes podem saltar e atravessá-las.
-    if (this.enemyGround) this.physics.add.collider(this.enemies, this.enemyGround);
+    // Main floor: everyone except platform leaks. Bosses MUST stand on this floor.
+    if (this.enemyGround) {
+      this.physics.add.collider(this.enemies, this.enemyGround, null, (a, b) => {
+        const enemy = a?.slug !== undefined || a?.isBoss || a?.onPlatform !== undefined ? a : b;
+        return !enemy?.onPlatform;
+      });
+    }
+    // Floating platforms only: regular floor bugs. Bosses pass through; leaks are pinned.
+    this.physics.add.collider(this.enemies, this.platforms, null, (a, b) => {
+      const enemy = a?.isBoss !== undefined || a?.slug !== undefined ? a : b;
+      if (enemy?.isBoss || enemy?.onPlatform) return false;
+      // Skip the main floor object here — it already has its own collider above
+      if (b === this.enemyGround || a === this.enemyGround) return false;
+      return true;
+    });
     this.physics.add.collider(this.pickups, this.platforms);
     this.physics.add.overlap(this.bullets, this.enemies, (b, e) => this.hitEnemy(b, e));
     this.physics.add.overlap(this.player, this.enemies, (_, e) => {
       if (e.defeated || this.finished || this.paused || this.playerDying) return;
       if (this.isBlocking()) this.blockHit(e.x);
-      else this.damagePlayer(12, e.x);
+      else this.damagePlayer(e.meleeDamage || 12, e.x);
     });
     this.physics.add.overlap(this.player, this.enemyBullets, (_, b) => {
       if (this.finished || this.paused || this.playerDying) return;
@@ -447,6 +519,7 @@ export class GameScene extends Phaser.Scene {
 
     if (!this.player.hurtLock && !blocking) this.updatePlayerAnim(left || right, running, onGround);
 
+    this.updateBulletTrails(delta);
     this.enemies.children.iterate((e) => this.updateEnemy(e, time));
     this.updateHud();
     if (this.player.y > 760) this.killPlayer();
@@ -466,12 +539,39 @@ export class GameScene extends Phaser.Scene {
   }
 
   updateShield(on) {
-    if (!this.shield) return;
-    this.shield.setPosition(this.player.x, this.player.y);
-    this.shield.setVisible(on);
-    this.shield.setAlpha(on ? 0.22 + Math.sin(this.time.now / 120) * 0.08 : 0);
-    if (on) this.player.setTint(0x88e8ff);
-    else if (!this.player.hurtLock) this.player.clearTint();
+    if (!this.player?.active) return;
+    if (on) {
+      this.playSafe(this.player, 'player-defend');
+      this.player.setTint(0xffd48a);
+      // Defense aura: warm gold diamond (different from cyan charge oval)
+      if (!this.defendAura) {
+        this.defendAura = this.add.container(0, 0).setDepth(9);
+        const diamond = this.add.polygon(0, 4, [0, -52, 34, 0, 0, 52, -34, 0], 0xffb347, 0.16)
+          .setStrokeStyle(2, 0xffe566, 0.85);
+        const inner = this.add.polygon(0, 4, [0, -28, 18, 0, 0, 28, -18, 0], 0xfff0a8, 0.12);
+        const sparkL = this.add.circle(-22, -8, 2.2, 0xffe566, 0.9);
+        const sparkR = this.add.circle(22, 10, 2.2, 0xffc14d, 0.9);
+        this.defendAura.add([diamond, inner, sparkL, sparkR]);
+        this.defendAura._diamond = diamond;
+        this.defendAura._inner = inner;
+        this.defendAura._sparks = [sparkL, sparkR];
+      }
+      this.defendAura.setVisible(true);
+      this.defendAura.setPosition(this.player.x, this.player.y);
+      const pulse = 0.92 + Math.sin(this.time.now / 100) * 0.08;
+      this.defendAura.setScale(pulse);
+      this.defendAura.setAlpha(0.75 + Math.sin(this.time.now / 140) * 0.15);
+      if (this.defendAura._sparks) {
+        this.defendAura._sparks.forEach((s, i) => {
+          const a = this.time.now / 160 + i * Math.PI;
+          s.x = Math.cos(a) * 26;
+          s.y = Math.sin(a * 1.3) * 34;
+        });
+      }
+    } else {
+      this.defendAura?.setVisible(false);
+      if (!this.player.hurtLock && !this.player.attacking) this.player.clearTint();
+    }
   }
 
   blockHit(sourceX) {
@@ -484,12 +584,15 @@ export class GameScene extends Phaser.Scene {
     if (now - this.lastBlockPush > 220) {
       this.lastBlockPush = now;
       this.player.setVelocityX(this.player.x < sourceX ? -140 : 140);
-      // O feedback do bloqueio é textual/sonoro; não desenhar círculo sob Nicolas.
     }
   }
 
   updatePlayerAnim(moving, running, onGround) {
     if (this.player.attacking) return;
+    if (this.isBlocking()) {
+      this.playSafe(this.player, 'player-defend');
+      return;
+    }
     if (!onGround) this.playSafe(this.player, this.player.body.velocity.y < 0 ? 'player-jump' : 'player-fall');
     else if (moving && running) this.playSafe(this.player, 'player-run');
     else if (moving) this.playSafe(this.player, 'player-walk');
@@ -539,70 +642,85 @@ export class GameScene extends Phaser.Scene {
 
   updateChargeAura(on) {
     if (!this.chargeFx || !this.player?.active) return;
-    const dir = this.player.flipX ? -1 : 1;
-    const scale = this.player.scaleX || 1;
-    this.chargeFx.setPosition(this.player.x + dir * 18 * scale, this.player.y - 8 * scale);
+    this.chargeFx.setPosition(this.player.x, this.player.y);
     if (!on || this.chargeMs < 120) {
       this.chargeFx.setVisible(false);
       return;
     }
     const t = Phaser.Math.Clamp(this.chargeMs / 1600, 0, 1);
-    const radius = 7 + t * 18;
-    this.chargeFx.setVisible(true).setScale(0.75 + t * 0.55);
-    this.chargeFx.setAlpha(0.55 + t * 0.35 + Math.sin(this.time.now / 80) * 0.1);
-    this.chargeFx.list.forEach((spark, i) => {
-      const a = (i / this.chargeFx.list.length) * Math.PI * 2 + this.time.now / (i % 2 ? 170 : 230);
-      const r = radius * (0.45 + (i % 3) * 0.22);
-      spark.x = dir * Math.cos(a) * r;
-      spark.y = Math.sin(a) * r;
-      spark.alpha = 0.45 + t * 0.5;
+    const pulse = 0.85 + Math.sin(this.time.now / 90) * 0.12;
+    this.chargeFx.setVisible(true);
+    this.chargeFx.setScale(0.9 + t * 0.55);
+    this.chargeFx.setAlpha(0.35 + t * 0.55);
+    if (this.chargeGlow) {
+      this.chargeGlow.setFillStyle(t > 0.7 ? 0xb58cff : 0x4ce0ff, 0.16 + t * 0.22);
+      this.chargeGlow.setScale(pulse);
+    }
+    if (this.chargeGlow2) this.chargeGlow2.setScale(1.05 + Math.sin(this.time.now / 70) * 0.08);
+    if (this.chargeCore) this.chargeCore.setAlpha(0.08 + t * 0.22);
+    this.chargeFx.list.forEach((spark) => {
+      if (spark === this.chargeGlow || spark === this.chargeGlow2 || spark === this.chargeCore) return;
+      const i = spark.orbit ?? 0;
+      const a = (i / 10) * Math.PI * 2 + this.time.now / (140 + i * 18);
+      const r = (22 + t * 28) * (0.7 + (i % 3) * 0.18);
+      spark.x = Math.cos(a) * r * 0.55;
+      spark.y = Math.sin(a) * r - 4;
+      spark.alpha = 0.35 + t * 0.55;
+      spark.setScale(0.7 + t * 0.8);
     });
   }
 
   spawnMuzzleFlash(x, y, dir, level = 0) {
     const tint = level >= 2 ? 0xc7a5ff : level === 1 ? 0x75f6ff : 0xd8ffff;
     const flash = this.add.container(x + dir * 5, y).setDepth(24);
-    const core = this.add.circle(0, 0, level >= 2 ? 9 : 6, tint, 0.95);
-    const ray = this.add.rectangle(dir * (level >= 2 ? 19 : 13), 0, level >= 2 ? 34 : 24, 3, tint, 0.9);
-    const ray2 = this.add.rectangle(dir * 12, 0, 16, 2, 0xffffff, 0.95).setAngle(dir * 24);
-    flash.add([core, ray, ray2]);
-    this.tweens.add({ targets: flash, alpha: 0, scale: level >= 2 ? 1.8 : 1.45, duration: level >= 2 ? 220 : 130, ease: 'Cubic.easeOut', onComplete: () => flash.destroy() });
+    const core = this.add.circle(0, 0, level >= 2 ? 11 : level === 1 ? 8 : 5, tint, 0.95);
+    const halo = this.add.circle(0, 0, level >= 2 ? 18 : 12, tint, 0.35);
+    const ray = this.add.rectangle(dir * (level >= 2 ? 22 : 14), 0, level >= 2 ? 42 : 26, level >= 2 ? 5 : 3, tint, 0.9);
+    const ray2 = this.add.rectangle(dir * 14, -6, 18, 2, 0xffffff, 0.95).setAngle(dir * 28);
+    const ray3 = this.add.rectangle(dir * 14, 6, 18, 2, 0xffffff, 0.85).setAngle(dir * -28);
+    flash.add([halo, core, ray, ray2, ray3]);
+    this.tweens.add({
+      targets: flash, alpha: 0, scale: level >= 2 ? 2.1 : level === 1 ? 1.7 : 1.4,
+      duration: level >= 2 ? 280 : level === 1 ? 180 : 120,
+      ease: 'Cubic.easeOut', onComplete: () => flash.destroy()
+    });
   }
 
   fireEnergy(time, level) {
     if (time < this.fireCooldown && level === 0) return;
-    // Rapid pellets need short cooldown; charged always fires
-    this.fireCooldown = time + (level === 0 ? 140 : 280);
+    // Rapid fire is weaker DPS; charged shots are the real payoff
+    this.fireCooldown = time + (level === 0 ? 190 : 320);
 
     const dir = this.player.flipX ? -1 : 1;
-    // Hand tip on the new 96×128 sprite — not waist.
     const scale = this.player.scaleX || 1;
-    const muzzleX = this.player.x + dir * (22 * scale);
-    const muzzleY = this.player.y - (2 * scale);
+    const muzzleX = this.player.x + dir * (26 * scale);
+    const muzzleY = this.player.y - (6 * scale);
 
     let key = 'bullet';
-    let bScale = 1.15;
+    let bScale = 1.25;
     let speed = 560;
-    let damage = 28;
+    let damage = 12;
     let pierce = 0;
     let life = 1000;
 
     if (level === 1) {
       key = this.tex('bullet_charged') ? 'bullet_charged' : 'bullet';
-      bScale = 1.4;
+      bScale = 1.55;
       speed = 500;
-      damage = 55;
+      damage = 48;
       pierce = 1;
       life = 1400;
+      this.cameras.main.shake(110, 0.006);
     } else if (level === 2) {
       key = this.tex('bullet_mega') ? 'bullet_mega' : (this.tex('bullet_charged') ? 'bullet_charged' : 'bullet');
-      bScale = 1.6;
+      bScale = 1.85;
       speed = 460;
-      damage = 95;
+      damage = 125;
       pierce = 4;
       life = 1800;
       this.caffeine = Math.max(0, this.caffeine - 6);
-      this.cameras.main.shake(90, 0.004);
+      this.cameras.main.shake(220, 0.012);
+      this.cameras.main.flash(90, 160, 210, 255);
     }
 
     if (!this.tex(key)) key = this.tex('bullet') ? 'bullet' : 'bullet_enemy';
@@ -610,38 +728,65 @@ export class GameScene extends Phaser.Scene {
     const b = this.bullets.create(muzzleX, muzzleY, key);
     b.setDepth(20);
     b.setScale(bScale);
+    b.setAlpha(1);
     b.body.setAllowGravity(false);
-    const bw = Math.max(12, (b.width || 16) * 0.7);
-    const bh = Math.max(12, (b.height || 16) * 0.7);
-    b.body.setSize(bw, bh).setOffset((b.width - bw) / 2, (b.height - bh) / 2);
+    const bw = Math.max(14, (b.displayWidth || 16) * 0.55);
+    const bh = Math.max(14, (b.displayHeight || 16) * 0.55);
+    b.body.setSize(bw / (b.scaleX || 1), bh / (b.scaleY || 1));
     b.setVelocityX(dir * speed);
     b.damage = damage;
     b.pierce = pierce;
     b.hitSet = new Set();
     b.level = level;
+    b.trailAcc = 0;
     this.spawnMuzzleFlash(muzzleX, muzzleY, dir, level);
-    if (level >= 1 && this.anims.exists('bullet-charged') && key === 'bullet_charged') {
-      b.play('bullet-charged');
+    if (level >= 2 && this.anims.exists('bullet-mega') && key === 'bullet_mega') b.play('bullet-mega');
+    else if (level >= 1 && this.anims.exists('bullet-charged') && key === 'bullet_charged') b.play('bullet-charged');
+    else if (level === 0) {
+      // Soft pulse on basic orb
+      this.tweens.add({ targets: b, scaleX: bScale * 1.15, scaleY: bScale * 1.15, yoyo: true, duration: 90, repeat: 2 });
     }
 
     this.player.attacking = true;
     this.playSafe(this.player, 'player-attack');
-    this.time.delayedCall(160, () => { if (this.player.active) this.player.attacking = false; });
+    this.time.delayedCall(480, () => { if (this.player.active) this.player.attacking = false; });
 
-    AudioSystem.sfx(this, level >= 2 ? 'sfx_attack' : 'sfx_shoot', { volume: level >= 1 ? 0.7 : 0.5 });
+    AudioSystem.sfxExclusive(this, level >= 2 ? 'sfx_attack' : 'sfx_shoot', { volume: level >= 1 ? 0.75 : 0.5 });
     this.time.delayedCall(life, () => b.active && b.destroy());
   }
 
   // legacy alias
   shoot(time) { this.fireEnergy(time, 0); }
 
+  updateBulletTrails(delta) {
+    this.bullets?.children?.iterate?.((b) => {
+      if (!b?.active) return;
+      b.trailAcc = (b.trailAcc || 0) + delta;
+      const every = b.level >= 2 ? 28 : b.level >= 1 ? 36 : 48;
+      if (b.trailAcc < every) return;
+      b.trailAcc = 0;
+      const tint = b.level >= 2 ? 0xc7a5ff : b.level >= 1 ? 0x62efff : 0xb8ffff;
+      const spark = this.add.circle(b.x, b.y, b.level >= 2 ? 5 : b.level >= 1 ? 3.5 : 2.2, tint, 0.75).setDepth(19);
+      this.tweens.add({
+        targets: spark,
+        alpha: 0,
+        scale: 0.2,
+        x: spark.x - Math.sign(b.body?.velocity?.x || 1) * 10,
+        duration: b.level >= 1 ? 220 : 140,
+        onComplete: () => spark.destroy()
+      });
+    });
+  }
+
   updateEnemy(e, time) {
     if (!e || !e.active || e.defeated || !e.body?.enable) return;
     if (!Number.isFinite(e.x) || !Number.isFinite(e.y) || e.y > 750 || e.y < -100) {
-      e.body.reset(e.homeX || 3100, Math.min(e.homeY || 580, 580));
+      const hx = e.homeX || 3100;
+      const hy = e.onPlatform && Number.isFinite(e.homeY) ? e.homeY : Math.min(e.homeY || 580, 580);
+      e.body.reset(hx, hy);
       e.setVelocity(0, 0);
     }
-    if (e.hpBar?.active) e.hpBar.setPosition(e.x, e.y - 36);
+    this.syncEnemyHp(e);
     if (e.isBoss) { this.updateBoss(e, time); return; }
 
     const dist = this.player.x - e.x;
@@ -650,76 +795,166 @@ export class GameScene extends Phaser.Scene {
     const role = e.role || e.slug || 'syntax';
     const cur = e.anims?.currentAnim?.key || '';
     const busy = e.anims.isPlaying && (cur.includes('attack') || cur.includes('hurt') || cur.includes('death'));
-    if (!onCam && abs > 720) { e.setVelocityX(0); return; }
+
+    // Platform Memory Leaks — lob green rain + occasional scare sprint on the ledge
+    if (e.onPlatform || role === 'leak') {
+      e.onPlatform = true;
+      e.body.setAllowGravity(false);
+      const minX = Number.isFinite(e.patrolMin) ? e.patrolMin : (e.homeX || e.x) - 40;
+      const maxX = Number.isFinite(e.patrolMax) ? e.patrolMax : (e.homeX || e.x) + 40;
+      const homeY = Number.isFinite(e.homeY) ? e.homeY : e.y;
+      if (e.x <= minX + 2) e.dir = 1;
+      if (e.x >= maxX - 2) e.dir = -1;
+      // Face player when raining
+      if (onCam && abs < 520) e.dir = Math.sign(dist) || e.dir;
+      this.tickEnemySprint(e, time, abs, { chance: 6, minDist: 80, maxDist: 560, dur: [320, 520] });
+      const vx = (!onCam && abs > 720) ? 0 : e.dir * this.enemyMoveSpeed(e);
+      e.setVelocity(vx, 0);
+      e.setPosition(Phaser.Math.Clamp(e.x, minX, maxX), homeY);
+      e.setFlipX(e.dir < 0);
+      if (!busy) this.playSafe(e, `en-${e.slug || 'leak'}-walk`);
+      const rainGap = 2800 - this.level * 80;
+      if (onCam && abs < 640 && time - e.lastShot > rainGap) {
+        e.lastShot = time;
+        const aimX = this.player.x - e.x;
+        const shotVx = Phaser.Math.Clamp(aimX * 0.6, -240, 240);
+        this.fireEnemyShot(e, dist, Math.abs(shotVx) < 40 ? 90 : Math.abs(shotVx), -300, {
+          gravityY: 800, damage: 12 + this.level, scale: 1.15, tint: 0x7dff6a
+        });
+        this.fireEnemyShot(e, dist, Math.abs(shotVx) < 40 ? 140 : Math.abs(shotVx) + 50, -210, {
+          gravityY: 780, damage: 10 + this.level, scale: 0.95, tint: 0xb8ff7a
+        });
+      }
+      return;
+    }
+
+    if (!onCam && abs > 740) { e.setVelocityX(0); return; }
     if ((e.body.blocked.left && e.dir < 0) || (e.body.blocked.right && e.dir > 0)) e.dir *= -1;
 
     if (role === 'runtime') {
-      // Fast chaser — pressure melee, rare shot
-      if (abs < 700) e.dir = Math.sign(dist) || 1;
-      e.setVelocityX(e.dir * e.speed);
-      if (onCam && abs < 90 && time - e.lastShot > 700) {
-        e.lastShot = time;
+      // Pure melee hunter — no shots, closes in and lunges
+      if (abs < 780) e.dir = Math.sign(dist) || 1;
+      this.tickEnemySprint(e, time, abs, { chance: 12, minDist: 90, maxDist: 520, dur: [420, 680] });
+      if (onCam && abs > 70 && abs < 220 && time > e.lungeUntil && time > e.nextSpecial) {
+        e.nextSpecial = time + 3000;
+        e.lungeUntil = time + 420;
+        e.sprinting = true;
+        e.sprintUntil = e.lungeUntil;
         this.playSafe(e, `en-${e.slug}-attack`);
+        AudioSystem.sfx(this, 'sfx_glitch', { volume: 0.28 });
       }
+      const boost = time < e.lungeUntil ? 1.35 : 1;
+      e.setVelocityX(e.dir * this.enemyMoveSpeed(e) * boost);
     } else if (role === 'null') {
-      // Blink closer, then shoot
-      e.setVelocityX(e.dir * e.speed * 0.5);
-      if (onCam && abs < 520 && time > e.nextSpecial) {
-        e.nextSpecial = time + 2200;
-        const nx = Phaser.Math.Clamp(this.player.x - Math.sign(dist || 1) * 120, 40, 3560);
-        e.setPosition(nx, e.y);
-        e.setAlpha(0.35);
-        this.tweens.add({ targets: e, alpha: 1, duration: 200 });
-        AudioSystem.sfx(this, 'sfx_glitch', { volume: 0.25 });
+      // Teleport assassin — only hits up close, never shoots
+      e.dir = Math.sign(dist) || e.dir;
+      this.tickEnemySprint(e, time, abs, { chance: 5, minDist: 60, maxDist: 300, dur: [280, 420] });
+      if (time < e.lungeUntil) {
+        e.setVelocityX(e.dir * this.enemyMoveSpeed(e) * 1.4);
+      } else {
+        e.setVelocityX(e.dir * this.enemyMoveSpeed(e) * 0.55);
       }
-      if (onCam && abs < 360 && time - e.lastShot > 1600) {
-        e.lastShot = time;
-        this.fireEnemyShot(e, dist, 260, 0);
-      }
-    } else if (role === 'leak') {
-      // Slow drip shooter — arcs upward so a player on a platform is reachable.
-      if (abs < 480) e.dir = Math.sign(dist) || 1;
-      e.setVelocityX(e.dir * e.speed);
-      if (onCam && abs < 400 && time - e.lastShot > 1400) {
-        e.lastShot = time;
-        this.fireEnemyShot(e, dist, 180, -420, { gravityY: 520, damage: 12, scale: 1.05, tint: 0x66f3ff });
-        this.fireEnemyShot(e, dist, 215, -330, { gravityY: 520, damage: 12, scale: 0.9, tint: 0x9f7cff });
+      if (onCam && abs < 560 && time > e.nextSpecial) {
+        e.nextSpecial = time + Phaser.Math.Between(3000, 4200);
+        const side = Math.sign(dist || 1) || 1;
+        const nx = Phaser.Math.Clamp(this.player.x - side * Phaser.Math.Between(48, 78), 50, 3550);
+        e.setPosition(nx, Math.min(e.y, this.player.y + 10));
+        e.dir = Math.sign(this.player.x - e.x) || e.dir;
+        e.lungeUntil = time + 520;
+        e.setAlpha(0.25);
+        this.tweens.add({ targets: e, alpha: 1, duration: 180 });
+        this.playSafe(e, `en-${e.slug}-attack`);
+        AudioSystem.sfx(this, 'sfx_glitch', { volume: 0.32 });
+        this.spawnFx(e.x, e.y - 10, 'fx-glitch', 'fx_glitch');
       }
     } else if (role === 'legacy') {
-      // Tank — slow, heavy bolts
-      if (abs < 560) e.dir = Math.sign(dist) || 1;
-      e.setVelocityX(e.dir * e.speed);
-      if (onCam && abs < 420 && time - e.lastShot > 2100) {
+      // Tank — fat HP, slow bolts, rare stomp-rush
+      if (abs < 620) e.dir = Math.sign(dist) || 1;
+      this.tickEnemySprint(e, time, abs, { chance: 4, minDist: 120, maxDist: 400, dur: [320, 500] });
+      e.setVelocityX(e.dir * this.enemyMoveSpeed(e));
+      if (onCam && abs < 460 && time - e.lastShot > 3400 - this.level * 60) {
         e.lastShot = time;
-        const b = this.fireEnemyShot(e, dist, 160, 0);
-        if (b) { b.setScale(1.6); b.damage = 16; }
+        const b = this.fireEnemyShot(e, dist, 150 + this.level * 8, 0, {
+          damage: 15 + this.level, scale: 1.7, tint: 0xd7b464, life: 3200
+        });
+        if (b) b.setTint(0xe8c878);
+      }
+      if (onCam && abs < 280 && abs > 90 && time > e.nextSpecial) {
+        e.nextSpecial = time + 4200;
+        e.sprinting = true;
+        e.sprintUntil = time + 500;
+        this.playSafe(e, `en-${e.slug}-special`);
+        AudioSystem.sfx(this, 'sfx_enemy_shot', { volume: 0.35 });
       }
     } else if (role === 'spaghetti') {
-      // Erratic zig-zag
+      // Chaos — zig-zag + scatter bolts + panic dash
       if (time > e.nextSpecial) {
-        e.nextSpecial = time + Phaser.Math.Between(280, 520);
+        e.nextSpecial = time + Phaser.Math.Between(260, 480);
         e.dir = Phaser.Math.RND.pick([-1, 1]);
-        if (Phaser.Math.Between(0, 100) < 35) e.y = e.homeY - 28;
+        if (abs < 340 && Phaser.Math.Between(0, 100) < 40) e.dir = Math.sign(dist) || e.dir;
+        if (Phaser.Math.Between(0, 100) < 30) e.y = e.homeY - Phaser.Math.Between(12, 34);
       }
-      e.y += (e.homeY - e.y) * 0.08;
-      e.setVelocityX(e.dir * e.speed);
-      if (onCam && abs < 300 && time - e.lastShot > 1500) {
+      e.y += (e.homeY - e.y) * 0.1;
+      this.tickEnemySprint(e, time, abs, { chance: 8, minDist: 100, maxDist: 480, dur: [360, 580] });
+      e.setVelocityX(e.dir * this.enemyMoveSpeed(e));
+      if (onCam && abs < 360 && time - e.lastShot > 2600 - this.level * 50) {
         e.lastShot = time;
-        this.fireEnemyShot(e, dist, 200, Phaser.Math.Between(-80, 80));
+        [-70, 0, 70].forEach((ang, i) => {
+          const rad = Phaser.Math.DegToRad(ang);
+          this.spawnEnemyProjectile(
+            e.x, e.y,
+            Math.sign(dist || 1) * (190 + i * 20) * Math.cos(rad * 0.4),
+            Math.sin(rad) * 140 + Phaser.Math.Between(-40, 40),
+            { damage: 11 + this.level, scale: 0.85, tint: 0xff6b9d, life: 2400 }
+          );
+        });
+        this.playSafe(e, `en-${e.slug}-attack`);
+        AudioSystem.sfx(this, 'sfx_enemy_shot', { volume: 0.4 });
       }
     } else {
-      // syntax — classic patrol + shot
-      if (abs < 520) e.dir = Math.sign(dist) || 1;
-      e.setVelocityX(e.dir * e.speed);
-      const fireGap = this.level === 1 ? 2400 : 1800 - this.level * 90;
-      if (onCam && abs < 340 && time - e.lastShot > fireGap) {
+      // Syntax — classic mid-range shooter, keeps distance, scare-rush sometimes
+      if (abs < 560) {
+        if (abs < 160) e.dir = -Math.sign(dist) || e.dir; // back off
+        else if (abs > 300) e.dir = Math.sign(dist) || 1;
+      }
+      this.tickEnemySprint(e, time, abs, { chance: 7, minDist: 150, maxDist: 500, dur: [360, 560] });
+      e.setVelocityX(e.dir * this.enemyMoveSpeed(e));
+      const fireGap = this.level === 1 ? 3000 : 2600 - this.level * 50;
+      if (onCam && abs < 380 && abs > 70 && time - e.lastShot > fireGap) {
         e.lastShot = time;
-        this.fireEnemyShot(e, dist, 220, 0);
+        this.fireEnemyShot(e, dist, 230 + this.level * 10, 0, {
+          damage: 11 + this.level, tint: 0x6ee7ff
+        });
       }
     }
 
     e.setFlipX(e.dir < 0);
     if (!busy) this.playSafe(e, `en-${e.slug}-walk`);
+  }
+
+  enemyMoveSpeed(e) {
+    const base = e.speed || 70;
+    if (e.sprinting && this.time.now < e.sprintUntil) return base * (e.sprintMul || 1.55);
+    return base;
+  }
+
+  tickEnemySprint(e, time, abs, opts = {}) {
+    if (e.sprinting && time >= e.sprintUntil) e.sprinting = false;
+    if (e.sprinting) return;
+    const chance = opts.chance ?? 10;
+    const minD = opts.minDist ?? 120;
+    const maxD = opts.maxDist ?? 480;
+    if (abs < minD || abs > maxD || time < e.nextSprint) return;
+    if (Phaser.Math.Between(0, 100) > chance) {
+      e.nextSprint = time + 400;
+      return;
+    }
+    const [d0, d1] = opts.dur || [400, 650];
+    e.sprinting = true;
+    e.sprintUntil = time + Phaser.Math.Between(d0, d1);
+    e.nextSprint = time + Phaser.Math.Between(3200, 5200);
+    e.setTintFill(0xffffff);
+    this.time.delayedCall(70, () => e.active && !e.defeated && e.clearTint());
   }
 
   spawnEnemyProjectile(x, y, vx, vy, options = {}) {
@@ -741,6 +976,7 @@ export class GameScene extends Phaser.Scene {
 
   fireEnemyShot(e, dist, speedX, speedY, options = {}) {
     this.playSafe(e, `en-${e.slug}-attack`);
+    AudioSystem.sfx(this, 'sfx_enemy_shot', { volume: 0.45 });
     return this.spawnEnemyProjectile(e.x, e.y, Math.sign(dist || 1) * speedX, speedY || 0, options);
   }
 
@@ -750,10 +986,23 @@ export class GameScene extends Phaser.Scene {
     if (b.hitSet.has(e)) return;
     b.hitSet.add(e);
 
-    const baseDamage = b.damage || 28;
-    const dmg = Math.round(baseDamage * (e.isBoss && e.vulnerable ? 1.35 : 1));
+    const baseDamage = b.damage || 12;
+    const shotLv = b.level || 0;
+    // Bosses shrug off weak pellets; fully charged hits hard
+    let mult = 1;
+    if (e.isBoss) {
+      if (shotLv <= 0) mult = 0.32;
+      else if (shotLv === 1) mult = 0.75;
+      else mult = 1.2;
+      if (e.vulnerable) mult *= 1.25;
+    } else if (shotLv <= 0) {
+      mult = 0.85; // regular bugs still tank spam a bit
+    } else if (shotLv >= 2) {
+      mult = 1.15;
+    }
+    const dmg = Math.max(1, Math.round(baseDamage * mult));
     e.hp -= dmg;
-    this.popup(e.x, e.y - 26, `-${dmg}`, e.isBoss && e.vulnerable ? '#fff0a8' : (b.level >= 2 ? '#e0b0ff' : '#7cf5ff'));
+    this.popup(e.x, e.y - 26, `-${dmg}`, e.isBoss && e.vulnerable ? '#fff0a8' : (shotLv >= 2 ? '#e0b0ff' : '#7cf5ff'));
     this.showEnemyHp(e);
     this.spawnFx(e.x, e.y, 'fx-impact', 'fx_impact');
     AudioSystem.sfx(this, e.isBoss ? 'sfx_boss_hit' : 'sfx_hit', { volume: 0.6 });
@@ -778,6 +1027,7 @@ export class GameScene extends Phaser.Scene {
       this.playSafe(e, boss ? `boss-${e.bossKey}-death` : `en-${e.slug}-death`);
       e.body.enable = false;
       e.hpBar?.destroy();
+      e.hpBarBg?.destroy();
       this.tweens.add({ targets: e, alpha: 0, y: e.y + 15, duration: boss ? 700 : 350, onComplete: () => e.active && e.destroy() });
       this.score++; this.xp = Math.min(100, this.xp + (boss ? 40 : 12));
       this.toast(boss ? 'BOSS FIXED' : `${e.type || 'Bug'} fixed.`);
@@ -821,7 +1071,8 @@ export class GameScene extends Phaser.Scene {
     this.player.body.enable = false;
     this.enemyBullets.clear(true, true);
     VirtualPad.reset();
-    this.shield?.setVisible(false);
+    this.defendAura?.setVisible(false);
+    this.chargeFx?.setVisible(false);
     this.deaths++;
     SaveSystem.save({ deaths: SaveSystem.load().deaths + 1 });
     this.playSafe(this.player, 'player-death');
@@ -874,20 +1125,36 @@ export class GameScene extends Phaser.Scene {
     const tex = `boss_${key}`;
     const worldW = this.physics.world.bounds.width;
     const x = Phaser.Math.Clamp(this.player.x + (this.player.x > 2700 ? -460 : 460), 220, worldW - 240);
-    const e = this.enemies.create(x, 510, tex);
-    e.homeX = x; e.homeY = 510; e.defeated = false;
+    const e = this.enemies.create(x, 560, tex);
+    e.homeX = x; e.homeY = 560; e.defeated = false;
     e.isBoss = true; e.bossKey = key;
-    e.hp = 200 + this.level * 90; e.maxHp = e.hp;
-    e.speed = 55 + this.level * 12;
-    e.lastShot = this.time.now + 900;
+    // Distinct boss HP pools — later bosses soak more charged shots
+    const bossHp = {
+      procrastination: 480 + this.level * 90,
+      deadline: 620 + this.level * 110,
+      ultimate: 820 + this.level * 140
+    };
+    e.hp = bossHp[key] || 600 + this.level * 120;
+    e.maxHp = e.hp;
+    e.speed = (key === 'deadline' ? 72 : key === 'ultimate' ? 64 : 48) + this.level * 8;
+    e.meleeDamage = key === 'ultimate' ? 24 : key === 'deadline' ? 20 : 16;
+    e.hpColor = key === 'deadline' ? 0x46f0bd : key === 'ultimate' ? 0xd7b464 : 0xff7c55;
+    e.lastShot = this.time.now + 1100;
     e.nextJump = 0;
+    e.nextSprint = 0;
+    e.sprinting = false;
+    e.sprintUntil = 0;
+    e.sprintMul = 1.5;
     e.attackPattern = 0;
     e.attackOpenUntil = 0;
     e.vulnerable = false;
     e.dir = -1;
     e.setCollideWorldBounds(true);
+    e.body.setAllowGravity(true);
+    e.setBounce(0);
     e.setScale(0.88);
-    e.body.setSize(152, 184).setOffset(52, 57);
+    // Feet sit on the main floor; keep hitbox readable for player shots
+    e.body.setSize(140, 160).setOffset(58, 72);
     this.playSafe(e, `boss-${key}-intro`);
     this.time.delayedCall(700, () => this.playSafe(e, `boss-${key}-idle`));
     AudioSystem.playMusic(this, this.cfg.bossMusic || 'mus_boss');
@@ -897,76 +1164,182 @@ export class GameScene extends Phaser.Scene {
       ...Fonts.PIXEL, fontSize: '14px', color: '#ff7ea0', backgroundColor: '#070914aa', padding: { x: 18, y: 10 }
     }).setOrigin(0.5).setScrollFactor(0).setDepth(60);
     this.bossHpBack = this.add.rectangle(640, 148, 420, 10, 0x1a2238).setScrollFactor(0).setDepth(60);
-    this.bossHp = this.add.rectangle(430, 148, 420, 10, 0xff4f72).setOrigin(0, 0.5).setScrollFactor(0).setDepth(61);
+    this.bossHp = this.add.rectangle(430, 148, 420, 10, e.hpColor).setOrigin(0, 0.5).setScrollFactor(0).setDepth(61);
     this.cameras.main.flash(250, 180, 40, 80);
     this.cameras.main.shake(200, 0.008);
   }
 
   fireBossPattern(e, time) {
-    const angle = Phaser.Math.Angle.Between(e.x, e.y, this.player.x, this.player.y);
-    const pattern = e.attackPattern++ % 4;
-    this.playSafe(e, `boss-${e.bossKey}-attack`);
+    const key = e.bossKey || 'ultimate';
+    this.playSafe(e, `boss-${key}-attack`);
     AudioSystem.sfx(this, 'sfx_boss_shot', { volume: 0.5 });
-    if (pattern === 0) {
-      // Cone of bolts: the centre lane is intentionally left readable.
-      for (let i = -2; i <= 2; i++) {
-        const a = angle + i * 0.18;
-        this.spawnEnemyProjectile(e.x, e.y, Math.cos(a) * 250, Math.sin(a) * 250, {
-          texture: 'bullet_debug', damage: 10, scale: i === 0 ? 1.25 : 0.9, tint: 0xff6c9d
-        });
-      }
-    } else if (pattern === 1) {
-      // Aimed three-shot burst, with enough timing to dash between rounds.
-      for (let i = 0; i < 3; i++) {
-        this.time.delayedCall(i * 150, () => {
-          if (!e.active || e.defeated) return;
-          const a = Phaser.Math.Angle.Between(e.x, e.y, this.player.x, this.player.y);
-          this.spawnEnemyProjectile(e.x, e.y, Math.cos(a) * 320, Math.sin(a) * 320, {
-            texture: i === 1 ? 'bullet_mega' : 'bullet_enemy', damage: 13, scale: i === 1 ? 1.15 : 0.8, tint: 0xffb36b
-          });
-        });
-      }
-    } else if (pattern === 2) {
-      // Arcing rain reaches a player standing on an upper platform.
-      [-120, 0, 120].forEach((offset, i) => {
-        this.spawnEnemyProjectile(e.x, e.y, Phaser.Math.Clamp((this.player.x + offset - e.x) * 0.42, -260, 260), -410 - i * 35, {
-          texture: 'bullet_charged', gravityY: 500, damage: 14, scale: 0.95, tint: 0x76f5ff, life: 3600
-        });
-      });
-    } else {
-      // Cross pattern: dangerous at the edges, safe centre lane for counterattack.
-      [-1, 1].forEach(side => this.spawnEnemyProjectile(e.x, e.y, side * 290, 0, {
-        texture: 'bullet_mega', damage: 12, scale: 1.05, tint: 0xb58cff
-      }));
-      this.spawnEnemyProjectile(e.x, e.y, Math.cos(angle) * 285, Math.sin(angle) * 285, {
-        texture: 'bullet_debug', damage: 12, scale: 0.9, tint: 0xff6c9d
-      });
-    }
-    // Every pattern ends with a visible punish window.
-    e.attackOpenUntil = time + 760;
+    if (key === 'procrastination') this.bossKitProcrastination(e, time);
+    else if (key === 'deadline') this.bossKitDeadline(e, time);
+    else this.bossKitUltimate(e, time);
+
+    e.attackOpenUntil = time + (key === 'deadline' ? 620 : key === 'ultimate' ? 700 : 820);
     e.vulnerable = true;
     e.setTint(0x9ffcff);
-    this.time.delayedCall(760, () => {
+    this.time.delayedCall(e.attackOpenUntil - time, () => {
       if (e.active && !e.defeated) { e.vulnerable = false; e.clearTint(); }
     });
   }
 
+  bossKitProcrastination(e, time) {
+    // Lazy delay, then a messy cone — “amanhã eu faço”
+    const pattern = e.attackPattern++ % 3;
+    if (pattern === 0) {
+      this.time.delayedCall(280, () => {
+        if (!e.active || e.defeated) return;
+        const angle = Phaser.Math.Angle.Between(e.x, e.y, this.player.x, this.player.y);
+        for (let i = -2; i <= 2; i++) {
+          const a = angle + i * 0.2;
+          this.spawnEnemyProjectile(e.x, e.y, Math.cos(a) * 220, Math.sin(a) * 220, {
+            texture: 'bullet_debug', damage: 11, scale: 1.0, tint: 0xff7c55
+          });
+        }
+      });
+    } else if (pattern === 1) {
+      // Slow “I’ll get to it” lob toward player
+      for (let i = 0; i < 2; i++) {
+        this.spawnEnemyProjectile(e.x, e.y, (this.player.x - e.x) * 0.35 + (i ? 40 : -40), -360 - i * 40, {
+          texture: 'bullet_charged', gravityY: 480, damage: 13, scale: 1.05, tint: 0xff9a6b, life: 3600
+        });
+      }
+    } else {
+      // Sudden “ok fine” dash window + side bolts
+      e.sprinting = true;
+      e.sprintUntil = time + 560;
+      [-1, 1].forEach(side => this.spawnEnemyProjectile(e.x, e.y, side * 260, 40, {
+        texture: 'bullet_enemy', damage: 12, scale: 1.0, tint: 0xff7c55
+      }));
+    }
+  }
+
+  bossKitDeadline(e, time) {
+    // Aggressive clock pressure — rain + rapid bursts
+    const pattern = e.attackPattern++ % 3;
+    const angle = Phaser.Math.Angle.Between(e.x, e.y, this.player.x, this.player.y);
+    if (pattern === 0) {
+      for (let i = 0; i < 4; i++) {
+        this.time.delayedCall(i * 110, () => {
+          if (!e.active || e.defeated) return;
+          const a = Phaser.Math.Angle.Between(e.x, e.y, this.player.x, this.player.y);
+          this.spawnEnemyProjectile(e.x, e.y, Math.cos(a) * 340, Math.sin(a) * 340, {
+            texture: i === 2 ? 'bullet_mega' : 'bullet_enemy', damage: 14, scale: i === 2 ? 1.2 : 0.85, tint: 0x46f0bd
+          });
+        });
+      }
+    } else if (pattern === 1) {
+      [-160, -60, 60, 160].forEach((offset, i) => {
+        this.spawnEnemyProjectile(e.x, e.y, Phaser.Math.Clamp((this.player.x + offset - e.x) * 0.48, -280, 280), -430 - i * 25, {
+          texture: 'bullet_charged', gravityY: 560, damage: 13, scale: 0.9, tint: 0x7affd0, life: 3600
+        });
+      });
+    } else {
+      // Closing pressure: ring + chase sprint
+      for (let i = 0; i < 6; i++) {
+        const a = angle + (i / 6) * Math.PI * 2;
+        this.spawnEnemyProjectile(e.x, e.y, Math.cos(a) * 210, Math.sin(a) * 210, {
+          texture: 'bullet_debug', damage: 12, scale: 0.8, tint: 0x46f0bd
+        });
+      }
+      e.sprinting = true;
+      e.sprintUntil = time + 640;
+    }
+  }
+
+  bossKitUltimate(e, time) {
+    // Mix of everything — the bug that outlived every commit
+    const pattern = e.attackPattern++ % 4;
+    const angle = Phaser.Math.Angle.Between(e.x, e.y, this.player.x, this.player.y);
+    if (pattern === 0) {
+      for (let i = -2; i <= 2; i++) {
+        const a = angle + i * 0.16;
+        this.spawnEnemyProjectile(e.x, e.y, Math.cos(a) * 270, Math.sin(a) * 270, {
+          texture: 'bullet_debug', damage: 13, scale: i === 0 ? 1.3 : 0.9, tint: 0xff6c9d
+        });
+      }
+    } else if (pattern === 1) {
+      for (let i = 0; i < 3; i++) {
+        this.time.delayedCall(i * 140, () => {
+          if (!e.active || e.defeated) return;
+          const a = Phaser.Math.Angle.Between(e.x, e.y, this.player.x, this.player.y);
+          this.spawnEnemyProjectile(e.x, e.y, Math.cos(a) * 330, Math.sin(a) * 330, {
+            texture: i === 1 ? 'bullet_mega' : 'bullet_enemy', damage: 15, scale: i === 1 ? 1.2 : 0.85, tint: 0xd7b464
+          });
+        });
+      }
+    } else if (pattern === 2) {
+      [-120, 0, 120].forEach((offset, i) => {
+        this.spawnEnemyProjectile(e.x, e.y, Phaser.Math.Clamp((this.player.x + offset - e.x) * 0.42, -260, 260), -420 - i * 30, {
+          texture: 'bullet_charged', gravityY: 520, damage: 14, scale: 0.95, tint: 0x76f5ff, life: 3600
+        });
+      });
+      // Tele-stomp near player
+      this.time.delayedCall(380, () => {
+        if (!e.active || e.defeated) return;
+        const nx = Phaser.Math.Clamp(this.player.x + Phaser.Math.RND.pick([-90, 90]), 180, 3400);
+        const ny = e.homeY || 560;
+        e.body.reset(nx, ny);
+        e.setVelocity(0, 0);
+        e.sprinting = true;
+        e.sprintUntil = time + 700;
+        this.playSafe(e, `boss-${e.bossKey}-special`);
+        AudioSystem.sfx(this, 'sfx_glitch', { volume: 0.4 });
+      });
+    } else {
+      [-1, 1].forEach(side => this.spawnEnemyProjectile(e.x, e.y, side * 300, 0, {
+        texture: 'bullet_mega', damage: 14, scale: 1.1, tint: 0xb58cff
+      }));
+      this.spawnEnemyProjectile(e.x, e.y, Math.cos(angle) * 300, Math.sin(angle) * 300, {
+        texture: 'bullet_debug', damage: 14, scale: 1.0, tint: 0xff6c9d
+      });
+    }
+  }
+
   updateBoss(e, time) {
     const dist = this.player.x - e.x;
-    e.setVelocityX(time < e.attackOpenUntil ? 0 : (Math.abs(dist) > 170 ? Math.sign(dist) * e.speed : 0));
+    const abs = Math.abs(dist);
+    const key = e.bossKey || 'ultimate';
+    this.tickEnemySprint(e, time, abs, {
+      chance: key === 'deadline' ? 10 : key === 'ultimate' ? 8 : 5,
+      minDist: 120, maxDist: 480, dur: [360, 560]
+    });
+    const canMove = time >= e.attackOpenUntil;
+    let vx = 0;
+    if (canMove) {
+      if (abs > 150) vx = Math.sign(dist) * this.enemyMoveSpeed(e);
+      else if (key === 'deadline' && abs > 80) vx = Math.sign(dist) * this.enemyMoveSpeed(e) * 0.7;
+    }
+    e.setVelocityX(vx);
     e.setFlipX(dist < 0);
-    e.y = e.homeY + Math.sin(time / 420) * 9;
+    // Stay planted on the main floor — never force Y (that desynced hitboxes)
+    if (e.body) {
+      if (e.y > 620) {
+        e.y = 600;
+        e.body.reset(e.x, e.y);
+        e.setVelocityY(0);
+      }
+      if (e.body.blocked.down || e.body.touching.down) e.homeY = e.y;
+    }
     if (this.bossHp && e.maxHp) this.bossHp.width = 420 * Phaser.Math.Clamp(e.hp / e.maxHp, 0, 1);
-    if (time >= e.attackOpenUntil && time - e.lastShot > 1760 - this.level * 80) {
+
+    const fireGap = key === 'deadline'
+      ? 2200 - this.level * 50
+      : key === 'ultimate'
+        ? 2500 - this.level * 40
+        : 2800 - this.level * 40;
+    if (canMove && time - e.lastShot > fireGap) {
       e.lastShot = time;
       this.fireBossPattern(e, time);
-      if (Math.abs(dist) < 160) {
-        this.playSafe(e, `boss-${e.bossKey}-special`);
+      if (abs < 150) {
+        this.playSafe(e, `boss-${key}-special`);
         AudioSystem.sfx(this, 'sfx_glitch', { volume: 0.35 });
       }
     }
-    if (time < e.attackOpenUntil) this.playSafe(e, `boss-${e.bossKey}-idle`);
-    else if (!e.anims.isPlaying) this.playSafe(e, `boss-${e.bossKey}-idle`);
+    if (time < e.attackOpenUntil) this.playSafe(e, `boss-${key}-idle`);
+    else if (!e.anims.isPlaying) this.playSafe(e, `boss-${key}-idle`);
   }
 
   livingEnemies() {
@@ -1111,13 +1484,26 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
+  attachEnemyHp(e) {
+    const w = e.barW || 36;
+    const color = e.hpColor || 0xff4f72;
+    e.hpBarBg = this.add.rectangle(e.x, e.y - 42, w + 2, 7, 0x070b16, 0.9).setDepth(29);
+    e.hpBar = this.add.rectangle(e.x - w / 2, e.y - 42, w, 5, color).setOrigin(0, 0.5).setDepth(30);
+  }
+
+  syncEnemyHp(e) {
+    if (!e?.active) return;
+    if (!e.hpBar || !e.hpBar.active) this.attachEnemyHp(e);
+    const w = e.barW || 36;
+    const ratio = Phaser.Math.Clamp(e.hp / Math.max(1, e.maxHp), 0, 1);
+    e.hpBarBg?.setPosition(e.x, e.y - 42);
+    e.hpBar.width = Math.max(2, w * ratio);
+    e.hpBar.setPosition(e.x - w / 2, e.y - 42);
+    if (e.hpColor) e.hpBar.setFillStyle(e.hpColor);
+  }
+
   showEnemyHp(e) {
-    const w = e.isBoss ? 64 : 36;
-    if (!e.hpBar || !e.hpBar.active) {
-      e.hpBar = this.add.rectangle(e.x, e.y - 30, w, 5, 0xff4f72).setDepth(30);
-    }
-    e.hpBar.width = Math.max(2, w * Phaser.Math.Clamp(e.hp / e.maxHp, 0, 1));
-    e.hpBar.setPosition(e.x, e.y - 30);
+    this.syncEnemyHp(e);
   }
 
   popup(x, y, msg, color) {

@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "player": { "frameWidth": 96, "frameHeight": 128, "anims": { "idle": 6, "walk": 10, "run": 10, "jump": 6, "fall": 4, "attack": 8, "hurt": 4, "death": 8 } },
+  "player": { "frameWidth": 96, "frameHeight": 128, "anims": { "idle": 6, "walk": 10, "run": 10, "jump": 6, "fall": 4, "attack": 8, "defend": 4, "hurt": 4, "death": 8 } },
   "enemy": { "file": "enemies/<tipo>/atlas.png", "frameWidth": 128, "frameHeight": 128, "frames": 4, "types": ["syntax", "runtime", "null", "leak", "legacy", "spaghetti"] },
   "boss": { "file": "bosses/<nome>/atlas.png", "frameWidth": 256, "frameHeight": 256, "frames": 4, "types": ["procrastination", "deadline", "ultimate"] },
   "animation": { "idle": [0, 1, 0, 2], "walk": [0, 1, 0, 2], "attack": [0, 3, 3, 0], "hurt": [3, 0], "death": "pose + fade and explosion" },

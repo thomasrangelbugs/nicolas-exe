@@ -146,10 +146,12 @@ body {
 
 .snes-dpad {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: 1fr 1fr 1fr;
+  gap: 6px;
   width: 100%;
   margin-bottom: 8px;
+  max-width: 200px;
 }
 .snes-dpad button {
   width: 100%;
@@ -160,6 +162,10 @@ body {
   font-size: clamp(14px, 3.4vw, 22px);
   box-shadow: inset 0 2px 0 #4a4a4a, 0 4px 0 #111;
 }
+.dpad-up { grid-column: 2; grid-row: 1; }
+.dpad-left { grid-column: 1; grid-row: 2; }
+.dpad-right { grid-column: 3; grid-row: 2; }
+.dpad-down { grid-column: 2; grid-row: 3; }
 
 .snes-face {
   display: grid;

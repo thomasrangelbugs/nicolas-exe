@@ -11,7 +11,7 @@
   <title>NICOLAS.EXE — Birthday Build</title>
   <link rel="icon" href="./assets/sprites/portraits/nicolas_icon.png" />
   <link rel="apple-touch-icon" href="./assets/sprites/portraits/nicolas_icon.png" />
-  <link rel="stylesheet" href="./styles.css?v=20260916-release5" />
+  <link rel="stylesheet" href="./styles.css?v=20260916-release6" />
 </head>
 <body>
   <div id="game-shell">
@@ -21,8 +21,10 @@
         <button type="button" data-btn="mute" aria-label="Mudo">♪</button>
       </div>
       <div class="snes-dpad" aria-label="Direcional">
-        <button type="button" data-btn="left" aria-label="Esquerda">◀</button>
-        <button type="button" data-btn="right" aria-label="Direita">▶</button>
+        <button type="button" data-btn="jump" class="dpad-up" aria-label="Pular">▲</button>
+        <button type="button" data-btn="left" class="dpad-left" aria-label="Esquerda">◀</button>
+        <button type="button" data-btn="right" class="dpad-right" aria-label="Direita">▶</button>
+        <button type="button" data-btn="defend" class="dpad-down" aria-label="Defesa">▼</button>
       </div>
     </aside>
 
@@ -51,6 +53,6 @@
     </div>
   </div>
   <script src="./vendor/phaser-3.90.0.min.js"></script>
-  <script type="module" src="./src/main.js?v=20260916-release5"></script>
+  <script type="module" src="./src/main.js?v=20260916-release6"></script>
 </body>
 </html>

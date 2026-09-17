@@ -5,7 +5,7 @@ const ENEMIES = ['syntax', 'runtime', 'null', 'leak', 'legacy', 'spaghetti'];
 const BOSSES = ['procrastination', 'deadline', 'ultimate'];
 const PLAYER_ANIMS = [
   ['idle', 6, 8], ['walk', 10, 12], ['run', 10, 16], ['jump', 6, 10],
-  ['fall', 4, 8], ['attack', 8, 16], ['hurt', 4, 14], ['death', 8, 12]
+  ['fall', 4, 8], ['attack', 8, 16], ['defend', 4, 8], ['hurt', 4, 14], ['death', 8, 12]
 ];
 
 export class BootScene extends Phaser.Scene {
@@ -81,7 +81,7 @@ export class BootScene extends Phaser.Scene {
     img('bullet', 'sprites/items/bullet.png');
     img('bullet_debug', 'sprites/items/bullet_debug.png');
     img('bullet_enemy', 'sprites/items/bullet_enemy.png');
-    img('bullet_mega', 'sprites/items/bullet_mega.png');
+    sheet('bullet_mega', 'sprites/items/bullet_mega_sheet.png', 48, 48);
     sheet('bullet_charged', 'sprites/items/bullet_charged.png', 32, 32);
 
     sheet('fx_impact', 'sprites/fx/impact.png', 32, 32);
@@ -125,14 +125,16 @@ export class BootScene extends Phaser.Scene {
     aud('mus_boss', 'audio/music/boss.ogg');
     aud('mus_boss_final', 'audio/music/boss_final.ogg');
     aud('mus_victory', 'audio/music/victory.ogg');
-    aud('mus_ending', 'audio/music/ending.mp3');
+    aud('mus_ending', 'audio/music/ending.ogg');
     aud('mus_ending_soft', 'audio/music/ending_soft.wav');
+    aud('mus_ending_party', 'audio/music/ending_party.mp3');
 
     const sfx = {
       sfx_jump: 'audio/sfx/jump.mp3',
       sfx_land: 'audio/sfx/land.mp3',
       sfx_attack: 'audio/sfx/attack.ogg',
-      sfx_shoot: 'audio/sfx/shoot.mp3',
+      sfx_shoot: 'audio/sfx/shoot.wav',
+      sfx_enemy_shot: 'audio/sfx/enemy_shot.wav',
       sfx_hit: 'audio/sfx/hit.ogg',
       sfx_hurt: 'audio/sfx/hurt.mp3',
       sfx_death: 'audio/sfx/death.ogg',
@@ -146,7 +148,7 @@ export class BootScene extends Phaser.Scene {
       sfx_explosion: 'audio/sfx/explosion.ogg',
       sfx_boss_hit: 'audio/sfx/boss_hit.ogg',
       sfx_gameover: 'audio/sfx/gameover.ogg',
-      sfx_transition: 'audio/sfx/transition.mp3',
+      sfx_transition: 'audio/sfx/transition.wav',
       sfx_glitch: 'audio/sfx/glitch.ogg',
       sfx_pause: 'audio/sfx/pause.ogg',
       sfx_resume: 'audio/sfx/resume.ogg',
@@ -225,7 +227,7 @@ export class BootScene extends Phaser.Scene {
     this.createAnimations();
     // A arte raster nova tem antialias próprio; filtro linear evita serrilhado
     // quando o personagem é exibido em escala fracionária.
-    PLAYER_ANIMS.forEach(([name]) => this.textures.get(`player_${name}`).setFilter(Phaser.Textures.FilterMode.LINEAR));
+    PLAYER_ANIMS.forEach(([name]) => this.textures.get(`player_${name}`).setFilter(Phaser.Textures.FilterMode.NEAREST));
     AudioSystem.init(this.game);
     const state = SaveSystem.load();
     AudioSystem.musicVol = state.settings?.music ?? 0.45;
@@ -275,6 +277,7 @@ export class BootScene extends Phaser.Scene {
     this.safeAnim('fx-pickup', 'fx_pickup', 5, 14, 0);
     this.safeAnim('fx-checkpoint', 'fx_checkpoint', 5, 10, -1);
     this.safeAnim('fx-glitch', 'fx_glitch', 5, 14, 0);
-    this.safeAnim('bullet-charged', 'bullet_charged', 3, 12, -1);
+    this.safeAnim('bullet-charged', 'bullet_charged', 3, 14, -1);
+    this.safeAnim('bullet-mega', 'bullet_mega', 3, 16, -1);
   }
 }

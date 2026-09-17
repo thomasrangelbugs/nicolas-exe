@@ -45,8 +45,8 @@ export class MenuScene extends Phaser.Scene {
 
     const done = !!this.state.completed;
     const touch = Device.wantsTouchUI();
-    const step = done ? 53 : 60;
-    let y = done ? 294 : 318;
+    const step = done ? 48 : 58;
+    let y = done ? 278 : 318;
     this.menuButtons.push(neonButton(this, 520, y, 'NOVA AVENTURA', () => this.go('IntroScene')));
     y += step;
     this.menuButtons.push(neonButton(this, 520, y, 'CONTINUAR', () => {
@@ -56,6 +56,8 @@ export class MenuScene extends Phaser.Scene {
     y += step;
     if (done) {
       this.menuButtons.push(neonButton(this, 520, y, 'REVER FINAL', () => this.go('CompleteScene')));
+      y += step;
+      this.menuButtons.push(neonButton(this, 520, y, 'ARQUIVO DE BUGS', () => this.go('BestiaryScene')));
       y += step;
     }
     this.menuButtons.push(neonButton(this, 520, y, 'CONQUISTAS', () => this.showAchievements()));
@@ -195,7 +197,8 @@ export class MenuScene extends Phaser.Scene {
     const lines = Device.wantsTouchUI()
       ? [
           'CELULAR / TABLET',
-          'Use o controle nas faixas pretas.',
+          'Direcional: ◀ ▶ mover',
+          '▲ pular  •  ▼ defender',
           'B = pulo  •  A = ataque (segurar = carga)',
           'Y = correr  •  X = defender',
           'II pausa  •  ♪ mudo'

@@ -39,6 +39,7 @@ export class IntroScene extends Phaser.Scene {
     if (this.started) return;
     this.started = true;
     this.timer?.remove(false);
+    AudioSystem.stopSfx(this, 'sfx_typing');
     SaveSystem.beginRun();
     AudioSystem.sfx(this, 'sfx_transition');
     this.scene.start('GameScene', { level: 1 });

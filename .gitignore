@@ -5,3 +5,7 @@ Thumbs.db
 .env
 .env.*
 !.env.example
+assets/audio/_dl/
+assets/audio/_music_backup/
+assets/sprites/_gen/
+assets/sprites/player_backup_pre_anim/
